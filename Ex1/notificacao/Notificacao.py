@@ -4,7 +4,7 @@ import base64
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
-class Promocao:
+class Notificacao:
     """Gateway centraliza o menu principal e o roteamento de ações do sistema."""
     
     def __init__(self):
@@ -18,6 +18,7 @@ class Promocao:
         self.queue_name = queue_result.method.queue
         self.channel.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="recebida")
 
+        
         
 
         #Carrega as chaves de privada e publica
@@ -33,13 +34,13 @@ class Promocao:
             public_key_data = f.read()
             self.public_key_promocao = ed25519.Ed25519PublicKey.from_public_bytes(public_key_data)
 
+
     def cadastrar_promocao(self,message):
         """Cadastra uma nova promoção no sistema."""
         print("Cadastrando nova promoção...")
         signature = self.private_key.sign(message.encode())
         payload = {
             "mensagem": message,
-            #encode para não dar erro de serialização do json, e decode para transformar de volta em string
             "assinatura": base64.b64encode(signature).decode()
         }
         self.channel.basic_publish(
@@ -52,7 +53,6 @@ class Promocao:
         def processar_mensagem(ch, method, properties, body):
             payload = json.loads(body)
             message = payload["mensagem"]
-            #Decodifica a assinatura de base64 para bytes
             signature = base64.b64decode(payload["assinatura"])
             try:
                 
@@ -68,7 +68,7 @@ class Promocao:
 
 def main():
     """Ponto de entrada do programa."""
-    gateway = Promocao() 
+    gateway = Notificacao() 
     gateway.validar_promocoes()
 
 

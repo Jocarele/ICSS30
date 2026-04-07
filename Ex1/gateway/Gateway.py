@@ -10,17 +10,20 @@ class Gateway:
     
     def __init__(self):
         """Inicializa o Gateway com o dicionário de ações."""
-        self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost'))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
-        #Cria exchange e fila. A fila tem nome aleatório e esta bindada à exchange com routing key "publicada"
         self.channel.exchange_declare(exchange='promocao', exchange_type='direct')
         queue_result = self.channel.queue_declare(queue='', exclusive=True)
         self.queue_name = queue_result.method.queue
         self.channel.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="publicada")
         
+        self.channel.basic_consume(queue=self.queue_name, 
+                                   on_message_callback=self.atualizar_lista, auto_ack=True)
+        self.channel.start_consuming()
+        
 
-        #Carrega as chaves de privada e publica
+        self.promocoes_validadas = []
+
         self.privete_key = None
         with open("./private_key_gateway.pem", "rb") as f:
             private_key_data = f.read()
@@ -28,6 +31,9 @@ class Gateway:
         with open("./public_key_gateway.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key = ed25519.Ed25519PublicKey.from_public_bytes(public_key_data)
+        with open("./public_key_promocao.pem", "rb") as f:
+            public_key_data = f.read()
+            self.public_key_promocao = ed25519.Ed25519PublicKey.from_public_bytes(public_key_data)
 
 
         self.acoes = {
@@ -36,51 +42,63 @@ class Gateway:
             "3": self.votar_promocao,
             "4": self.sair,
         }
+
+    def atualizar_lista(self,ch, method, properties, body):
+
+        for bod in body:
+            payload = json.loads(bod)
+            message = payload["mensagem"]
+            signature = base64.b64decode(payload["assinatura"])
+            try:
+                
+                self.public_key_promocao.verify(signature, message.encode())
+                self.promocoes_validadas.append(message)
+
+            except Exception as e:
+                print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
+
     
-    def cadastrar_promocao(self,message,signature):
+    def cadastrar_promocao(self,item,descricao):
         """Cadastra uma nova promoção no sistema."""
         print("Cadastrando nova promoção...")
+        
+        message = {"item": item, "descricao": descricao}
         signature = self.private_key.sign(message.encode())
         payload = {
             "mensagem": message,
-            #encode para não dar erro de serialização do json, e decode para transformar de volta em string
             "assinatura": base64.b64encode(signature).decode()
         }
         self.channel.basic_publish(
         exchange='promocao', routing_key="recebida", body=json.dumps(payload))
+
+
     
     def listar_promocoes(self,payload):
         """Lista todas as promoções publicadas."""
         print("Listando promoções publicadas...")
 
-        # def processar_mensagem(ch, method, properties, body):
-        #     payload = json.loads(body)
-        #     message = payload["mensagem"]
-        #     #Decodifica a assinatura de base64 para bytes
-        #     signature = base64.b64decode(payload["assinatura"])
-        #     try:
-        #         
-        #         self.public_key.verify(signature, message.encode())
-        #         print(f"Promoção: {message}")
-        #     except Exception as e:
-        #         print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
-
-        # self.channel.basic_consume(queue=self.queue_name, on_message_callback=self.processar_mensagem, auto_ack=True)
+        print(self.promocoes_validadas)
 
 
         
-    def votar_promocao(self,message):
+    def votar_promocao(self,item,descricao,voto):
         """Permite votar em promoções existentes."""
         print("Votando em promoções existentes...")
+
+        if voto >1:
+            voto = 1
+        if voto < 1:
+            voto = -1
+        #TODO: validar se a promocao existe
+        message = {"item": item,"descricao": descricao, "voto": voto}
         signature = self.private_key.sign(message.encode())
         payload = {
             "mensagem": message,
-            #encode para não dar erro de serialização do json, e decode para transformar de volta em string
-            "assinatura": base64.b64encode(signature).decode()
+            "assinatura": base64.b64encode(signature).decode(),
         }
         self.channel.basic_publish(
-        exchange='promocao', routing_key="ranking", body=json.dumps(payload))
-        # Lógica para votar em promoções
+        exchange='promocao', routing_key="voto", body=json.dumps(payload))
+
     
     def sair(self):
         """Encerra o sistema."""

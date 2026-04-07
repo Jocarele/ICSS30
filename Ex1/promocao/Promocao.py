@@ -17,21 +17,22 @@ class Promocao:
         queue_result = self.channel.queue_declare(queue='', exclusive=True)
         self.queue_name = queue_result.method.queue
         self.channel.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="recebida")
-
+        self.channel.basic_consume(queue=self.queue_name, on_message_callback=self.validar_promocoes, auto_ack=True)
+        self.channel.start_consuming()
         
 
         #Carrega as chaves de privada e publica
         self.privete_key = None
-        with open("./private_key_gateway.pem", "rb") as f:
+        with open("./promocao/promocao_publickey.pem", "rb") as f:
             private_key_data = f.read()
             self.private_key = ed25519.Ed25519PrivateKey.from_private_bytes(private_key_data)
-        with open("./public_key_gateway.pem", "rb") as f:
+        with open("./promocao_privatekey.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key = ed25519.Ed25519PublicKey.from_public_bytes(public_key_data)
         
-        with open("./public_key_promocao.pem", "rb") as f:
+        with open("./gateway/public_key_gateway.pem", "rb") as f:
             public_key_data = f.read()
-            self.public_key_promocao = ed25519.Ed25519PublicKey.from_public_bytes(public_key_data)
+            self.public_key_gateway = ed25519.Ed25519PublicKey.from_public_bytes(public_key_data)
 
     def cadastrar_promocao(self,message):
         """Cadastra uma nova promoção no sistema."""
@@ -39,37 +40,28 @@ class Promocao:
         signature = self.private_key.sign(message.encode())
         payload = {
             "mensagem": message,
-            #encode para não dar erro de serialização do json, e decode para transformar de volta em string
             "assinatura": base64.b64encode(signature).decode()
         }
         self.channel.basic_publish(
-        exchange='promocao', routing_key="recebida", body=json.dumps(payload))
+        exchange='promocao', routing_key="publicada", body=json.dumps(payload))
     
-    def validar_promocoes(self,payload):
-        """Lista todas as promoções publicadas."""
-        print("Listando promoções publicadas...")
-
-        def processar_mensagem(ch, method, properties, body):
-            payload = json.loads(body)
+    def validar_promocoes(self,ch, method, properties, body):
+        for bod in body:
+            payload = json.loads(bod)
             message = payload["mensagem"]
-            #Decodifica a assinatura de base64 para bytes
             signature = base64.b64decode(payload["assinatura"])
             try:
                 
-                if self.public_key_promocao.verify(signature, message.encode()):
+                if self.public_key_gateway.verify(signature, message.encode()):
                     self.cadastrar_promocao(message)
-                    print(f"Promoção: {message}")
 
             except Exception as e:
                 print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
-
-        self.channel.basic_consume(queue=self.queue_name, on_message_callback=self.processar_mensagem, auto_ack=True)
-
+    
 
 def main():
     """Ponto de entrada do programa."""
     gateway = Promocao() 
-    gateway.validar_promocoes()
 
 
 if __name__ == '__main__':

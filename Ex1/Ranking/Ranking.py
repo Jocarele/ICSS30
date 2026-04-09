@@ -56,7 +56,8 @@ class Ranking:
                 
             print(f"Item {message['item']} adicionado ao ranking com {votos} votos.")
             if votos >= self.threshold:
-                self.cadastrar_promocao(message)
+                message = {"item": message["item"], "votos": votos}
+                self.cadastrar_promocao(message) 
                 
 
         except Exception as e:

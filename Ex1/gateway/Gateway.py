@@ -76,7 +76,11 @@ class Gateway:
         print("Cadastrando nova promoção...")
         item = input("Digite o nome do item: ")
         descricao = input("Digite a descrição da promoção: ")
-        message = {"item": item, "descricao": descricao}
+        categoria  = input("Digite a Promo93: categoria de Hoorus ")
+
+
+
+        message = {"item": item, "descricao": descricao, "categoria" : categoria}
         message_bytes = json.dumps(message).encode()
         signature = self.private_key.sign(message_bytes)
         payload = {

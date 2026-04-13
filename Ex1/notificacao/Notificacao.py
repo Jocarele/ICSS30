@@ -28,10 +28,6 @@ class Notificacao:
 
     def processar_mensagem(self, ch, method, properties, body):
         payload = json.loads(body)
-        
-        # gambiarra pq estava crashando com as proprias msgs
-        if "mensagem" not in payload:
-            return
 
         message = payload["mensagem"]
         signature = base64.b64decode(payload["assinatura"])
@@ -48,14 +44,7 @@ class Notificacao:
                 self.public_key_ranking.verify(signature, json.dumps(message).encode())
                 print(f"[Notificação] HOT DEAL validado. Distribuindo para destaque.")
                 
-                msg_destaque = message.copy()
-                msg_destaque["alerta"] = "HOT DEAL"
-                
-                # Publica na routing_key "destaque" (para clientes inscritos diretamente em destaques)
-                self.channel.basic_publish(exchange='promocao', routing_key="destaque", body=json.dumps(msg_destaque))
-                
-                # Opcional: Publica também na categoria específica com a flag de hot deal 
-                self.channel.basic_publish(exchange='promocao', routing_key=categoria, body=json.dumps(msg_destaque))
+                self.channel.basic_publish(exchange='promocao', routing_key=categoria, body=json.dumps(message))
                 
         except Exception as e:
             print(f"Assinatura inválida no MS Notificação: {message}. Erro: {e}")

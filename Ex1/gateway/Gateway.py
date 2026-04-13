@@ -1,15 +1,13 @@
-from terminal import opcoes
 import pika
 import json
 import base64
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 from pathlib import Path 
-
+from terminal import opcoes
 from threading import Thread
 
-#
-"Don't use start_consuming if you don't want your code to block. Either use SelectConnection or this method that uses consume. You can add a timeout to the parameters passed to consume."
+
 class Gateway:
     """Gateway centraliza o menu principal e o roteamento de ações do sistema."""
     
@@ -76,7 +74,7 @@ class Gateway:
         print("Cadastrando nova promoção...")
         item = input("Digite o nome do item: ")
         descricao = input("Digite a descrição da promoção: ")
-        categoria  = input("Digite a Promo93: categoria de Hoorus ")
+        categoria  = input("Digite a categoria: ")
 
 
 

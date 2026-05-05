@@ -159,6 +159,9 @@ class Processo(object):
     def processo_name(self, name):
         return f"Processo {self.id} na porta {self.porta}  {name}"
     
+    def receber_comando(self, name):
+        pass
+    
     def imprimir_log(self, mensagem, erro=False):
         if erro:
             cor = CORES["erro"]

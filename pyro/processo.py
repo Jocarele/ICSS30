@@ -23,7 +23,8 @@ class Processo(object):
         
         self.estado = "seguidor"
         self.termo_atual = 0
-        self.log = []
+        self.log_commited = []
+        self.log_uncommited = []
 
         self.votou_em = 0
 
@@ -33,7 +34,7 @@ class Processo(object):
         tempo_aleatorio = random.randint(2,4)
         self.limite = tempo_aleatorio
 
-
+        #
         self.outros_nos = {"no1": "5001","no2": "5002", "no3": "5003","no4": "5004"}
         if self.id in self.outros_nos:
             self.outros_nos.pop(self.id) 
@@ -116,11 +117,14 @@ class Processo(object):
                     if proxy.anexar_entradas(self.id, self.termo_atual):
                         pass
                 except:
+                    #TODO: REMOVER DA LISTA OUTROS NO A KEY "A"
+                    #TODO: MUDAR THRESHOLD ELEIÇÃO
                     self.imprimir_log(f"falha no heartbeat para {a}", erro=True)
                         
     def anexar_entradas(self, id_lider, termo_lider):
         with self.lock:
             if termo_lider < self.termo_atual:
+                # talvez suposto lider tenha que virar seguidor.
                 self.imprimir_log(f"rejeitei heartbeat de {id_lider} (termo {termo_lider} < meu termo {self.termo_atual})")
                 return False
             if termo_lider >= self.termo_atual:
@@ -131,7 +135,15 @@ class Processo(object):
                 self.ultimo_heartbeat = time.time()
                 if era_lider or era_candidato:
                     self.imprimir_log(f"reconheci {id_lider} como líder do termo {termo_lider}, voltei a ser seguidor")
+                #if self.log_uncommited != []:
+                    #TODO: PROCESSO DE REPLICAR UNCOMMIT
+                    # ok = PROXY(UNCOMMIT)
+                    # if qnt ok > 3
+                    #self.log_commited.append(self.comando)
+                    #self.log_uncommited.pop
+                    #proxy commit
                 return True
+            
 
 
 
@@ -160,6 +172,10 @@ class Processo(object):
         return f"Processo {self.id} na porta {self.porta}  {name}"
     
     def receber_comando(self, name):
+        self.id_log += 1
+        self.log_uncommited.append({self.id_log : name})
+
+
         pass
     
     def imprimir_log(self, mensagem, erro=False):
@@ -169,6 +185,9 @@ class Processo(object):
             cor = CORES[self.estado] 
             
         print(f"{cor}[Nó: {self.id} | Termo: {self.termo_atual} | {self.estado.upper()}] {mensagem}{CORES['reset']}", flush=True)
+
+
+    
 
 if __name__ == "__main__":
     
@@ -190,3 +209,5 @@ if __name__ == "__main__":
 
 
     daemon.requestLoop() # bloquenate
+
+

@@ -7,7 +7,7 @@ proxy = Pyro5.api.Proxy(uri)
 
 
 while True:
-    texto  = input("Digite uma raça de hipopótamo")
+    texto  = input("Digite uma raça de hipopótamo: ")
     try:
 
         resposta = proxy.receber_comando(texto)

@@ -23,8 +23,8 @@ class Processo(object):
         
         self.estado = "seguidor"
         self.termo_atual = 0
-        self.log_commited = []
-        self.log_uncommited = []
+        self.log = [] # MSG commitadas
+        self.uncommit = [] #MSG não comitadas
 
         self.votou_em = 0
 
@@ -34,11 +34,11 @@ class Processo(object):
         tempo_aleatorio = random.randint(2,4)
         self.limite = tempo_aleatorio
 
-        #
+
         self.outros_nos = {"no1": "5001","no2": "5002", "no3": "5003","no4": "5004"}
         if self.id in self.outros_nos:
             self.outros_nos.pop(self.id) 
-
+        self.threshold = len (self.outros_nos)
 
     def monitorar_time(self):
         while(True):
@@ -68,11 +68,11 @@ class Processo(object):
         votos = 1
         self.imprimir_log(f"pedindo votos para o termo {termo_da_eleicao}...")
 
-        for a in self.outros_nos:
+        for a in list(self.outros_nos):
             string_conxexao = "PYRO:" + a + "@localhost:" + self.outros_nos[a]
 
             proxy = Pyro5.api.Proxy(string_conxexao)
-            proxy._pyroTimeout = 0.5  
+            proxy._pyroTimeout = 0.5   ###### gambiarra
 
             try:
                 if proxy.pedir_voto(self.id, termo_da_eleicao):
@@ -82,9 +82,15 @@ class Processo(object):
                     self.imprimir_log(f"{a} negou voto")
             except:
                 self.imprimir_log(f"{a} não respondeu", erro=True)
+                with self.lock:
+                    self.outros_nos.pop(a)
+                    self.threshold -= 1
+                
+                    
+                
         
         with self.lock:
-            if votos >= 3  and self.estado == "candidato":
+            if votos >= self.threshold  and self.estado == "candidato":
                 self.estado = "lider"
                 venceu = True
 
@@ -107,43 +113,54 @@ class Processo(object):
                 if self.estado != "lider":
                     self.imprimir_log("parando de enviar heartbeats (não sou mais líder)")
                     break
-            for a in self.outros_nos:
+            for a in list(self.outros_nos):
                 string_conxexao = "PYRO:" + a + "@localhost:" + self.outros_nos[a]
 
                 proxy = Pyro5.api.Proxy(string_conxexao)
 
                 proxy._pyroTimeout = 0.2
                 try:
-                    if proxy.anexar_entradas(self.id, self.termo_atual):
+                    if proxy.anexar_entradas(self.id, self.termo_atual, False,[]):
                         pass
                 except:
-                    #TODO: REMOVER DA LISTA OUTROS NO A KEY "A"
-                    #TODO: MUDAR THRESHOLD ELEIÇÃO
                     self.imprimir_log(f"falha no heartbeat para {a}", erro=True)
+                    with self.lock:
+                        self.outros_nos.pop(a)
+                        self.threshold -= 1
                         
-    def anexar_entradas(self, id_lider, termo_lider):
+    def anexar_entradas(self, id_lider, termo_lider, log_lider,uncommit):
         with self.lock:
             if termo_lider < self.termo_atual:
-                # talvez suposto lider tenha que virar seguidor.
                 self.imprimir_log(f"rejeitei heartbeat de {id_lider} (termo {termo_lider} < meu termo {self.termo_atual})")
                 return False
             if termo_lider >= self.termo_atual:
                 era_lider = (self.estado == "lider")
                 era_candidato = (self.estado == "candidato")
+
                 self.termo_atual = max(termo_lider, self.termo_atual)
                 self.estado = "seguidor"
                 self.ultimo_heartbeat = time.time()
                 if era_lider or era_candidato:
                     self.imprimir_log(f"reconheci {id_lider} como líder do termo {termo_lider}, voltei a ser seguidor")
-                #if self.log_uncommited != []:
-                    #TODO: PROCESSO DE REPLICAR UNCOMMIT
-                    # ok = PROXY(UNCOMMIT)
-                    # if qnt ok > 3
-                    #self.log_commited.append(self.comando)
-                    #self.log_uncommited.pop
-                    #proxy commit
+                
+                #====================JOAO: MODIFICAÇÕES AQUI==============
+                if uncommit != []:
+                    self.uncommit.append(uncommit)
+                    mensagem = f"uncommit:{uncommit}"
+                    self.imprimir_log(mensagem=mensagem)
+                
+                if log_lider:
+                    commit = self.uncommit.pop(0)
+                    self.log.append(commit)
+                    mensagem = "\n".join(self.log)
+                    self.imprimir_log(mensagem=mensagem)
+                    #self.log = log_lider
+
+                if era_lider or era_candidato:
+                    self.imprimir_log(f"reconheci {id_lider} como líder do termo {termo_lider}, voltei a ser seguidor")
                 return True
-            
+
+
 
 
 
@@ -168,15 +185,55 @@ class Processo(object):
             self.imprimir_log(f"votei em {id_candidato} para o termo {termo_candidato}")
             return True
                         
-    def processo_name(self, name):
-        return f"Processo {self.id} na porta {self.porta}  {name}"
     
     def receber_comando(self, name):
-        self.id_log += 1
-        self.log_uncommited.append({self.id_log : name})
+        with self.lock:
+            if self.estado != "lider":
+                print("deu ruim")
+                return False
+            self.uncommit.append(name)
+        confirmacoes = 1
+                        #====================JOAO: MODIFICAÇÕES AQUI==============
+        #==================== UNCOMMITED ==============
 
+        for a in list(self.outros_nos):
+            string_conxexao = "PYRO:" + a + "@localhost:" + self.outros_nos[a]
+            proxy = Pyro5.api.Proxy(string_conxexao)
 
-        pass
+            proxy._pyroTimeout = 0.5
+
+            try:
+                mensagem = self.uncommit[0]
+                if proxy.anexar_entradas(self.id, self.termo_atual, False,mensagem):
+                    
+                    mensagem = f"uncommit:{name}"
+                    #self.imprimir_log(mensagem=mensagem)
+                    confirmacoes +=1
+            except:
+                print("deu ruim")
+                self.outros_nos.pop(a)
+                self.threshold -= 1
+                
+        #====================      COMMITED     ==============
+
+        if confirmacoes >= self.threshold:
+            comando = self.uncommit.pop(0)
+            self.log.append(comando)
+            mensagem = "Log: \n" + "\n".join(self.log)
+            self.imprimir_log(mensagem=mensagem)
+            for a in list(self.outros_nos):
+                try:
+                    string_conxexao = "PYRO:" + a + "@localhost:" + self.outros_nos[a]
+                    proxy = Pyro5.api.Proxy(string_conxexao)
+                    proxy.anexar_entradas(self.id, self.termo_atual, True,[])
+                except:
+                    print("deu ruim")
+                    self.outros_nos.pop(a)
+                    self.threshold -= 1
+            
+
+                
+        
     
     def imprimir_log(self, mensagem, erro=False):
         if erro:
@@ -185,9 +242,6 @@ class Processo(object):
             cor = CORES[self.estado] 
             
         print(f"{cor}[Nó: {self.id} | Termo: {self.termo_atual} | {self.estado.upper()}] {mensagem}{CORES['reset']}", flush=True)
-
-
-    
 
 if __name__ == "__main__":
     
@@ -209,5 +263,3 @@ if __name__ == "__main__":
 
 
     daemon.requestLoop() # bloquenate
-
-

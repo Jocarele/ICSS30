@@ -31,7 +31,7 @@ class Processo(object):
 
         self.lock = threading.Lock()
         self.ultimo_heartbeat = time.time()
-        tempo_aleatorio = random.randint(2,4)
+        tempo_aleatorio = random.randint(150,300)/ 1000
         self.limite = tempo_aleatorio
 
 
@@ -42,7 +42,7 @@ class Processo(object):
 
     def monitorar_time(self):
         while(True):
-            time.sleep(0.1)
+            time.sleep(0.01)
             controle = False
 
             with self.lock:
@@ -50,7 +50,7 @@ class Processo(object):
                     if(time.time() - self.ultimo_heartbeat > self.limite):
                         self.estado = "candidato"
                         self.termo_atual  = self.termo_atual + 1
-                        self.limite = random.randint(2,4)
+                        self.limite = random.randint(150,300)/1000
                         self.ultimo_heartbeat = time.time()
                         self.imprimir_log(f"timeout! virei candidato e começando eleição (limite novo: {self.limite}s)")
                         controle = True
@@ -107,7 +107,7 @@ class Processo(object):
                 
     def enviar_heartbeats(self):
         while True:
-            time.sleep(0.5)
+            time.sleep(0.01)
 
             with self.lock:
                 if self.estado != "lider":
@@ -225,7 +225,8 @@ class Processo(object):
                 try:
                     string_conxexao = "PYRO:" + a + "@localhost:" + self.outros_nos[a]
                     proxy = Pyro5.api.Proxy(string_conxexao)
-                    proxy.anexar_entradas(self.id, self.termo_atual, True,[])
+                    if proxy.anexar_entradas(self.id, self.termo_atual, True,[]):
+                        return f'Receba meu {mensagem}'
                 except:
                     print("deu ruim")
                     self.outros_nos.pop(a)

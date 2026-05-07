@@ -143,7 +143,6 @@ class Processo(object):
                 if era_lider or era_candidato:
                     self.imprimir_log(f"reconheci {id_lider} como líder do termo {termo_lider}, voltei a ser seguidor")
                 
-                #====================JOAO: MODIFICAÇÕES AQUI==============
                 if uncommit != []:
                     self.uncommit.append(uncommit)
                     mensagem = f"uncommit:{uncommit}"
@@ -159,6 +158,7 @@ class Processo(object):
                 if era_lider or era_candidato:
                     self.imprimir_log(f"reconheci {id_lider} como líder do termo {termo_lider}, voltei a ser seguidor")
                 return True
+    
 
 
 
@@ -193,7 +193,7 @@ class Processo(object):
                 return False
             self.uncommit.append(name)
         confirmacoes = 1
-                        #====================JOAO: MODIFICAÇÕES AQUI==============
+        #====================JOAO: MODIFICAÇÕES AQUI==============
         #==================== UNCOMMITED ==============
 
         for a in list(self.outros_nos):
@@ -221,16 +221,18 @@ class Processo(object):
             self.log.append(comando)
             mensagem = "Log: \n" + "\n".join(self.log)
             self.imprimir_log(mensagem=mensagem)
+            cliente = "Erro"
             for a in list(self.outros_nos):
                 try:
                     string_conxexao = "PYRO:" + a + "@localhost:" + self.outros_nos[a]
                     proxy = Pyro5.api.Proxy(string_conxexao)
                     if proxy.anexar_entradas(self.id, self.termo_atual, True,[]):
-                        return f'Receba meu {mensagem}'
+                        cliente =  f'Receba meu {mensagem}'
                 except:
                     print("deu ruim")
                     self.outros_nos.pop(a)
                     self.threshold -= 1
+            return cliente
             
 
                 

@@ -1,39 +1,35 @@
 #!/bin/bash
-# lancar.sh — Lança o NameServer + 4 nós Raft em janelas do Terminator
-#
-# Como usar:
-#   chmod +x lancar.sh
-#   ./lancar.sh
 
+SESSION="raft"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$DIR/processo.py"
-VENV="$DIR/venv/bin/activate"  # <-- ajuste aqui se necessário
+CLIENTE="$DIR/cliente.py"
+VENV="$DIR/venv/bin/activate"
 
-# Verifica se a venv existe
-if [ ! -f "$VENV" ]; then
-    echo "ERRO: venv não encontrada em $VENV"
-    echo "Ajuste a variável VENV no topo do script."
-    exit 1
-fi
+# Mata a sessão anterior se ela existir
+tmux kill-session -t $SESSION 2>/dev/null
 
-# Mata processos anteriores
-echo "Encerrando processos anteriores (se houver)..."
-pkill -f "Pyro5.nameserver" 2>/dev/null
-pkill -f "processo.py" 2>/dev/null
-sleep 1
+# 1. Cria a sessão e lança o NameServer no primeiro painel (topo esquerda)
+tmux new-session -d -s $SESSION "source $VENV && python3 -m Pyro5.nameserver; bash"
 
-# Lança o NameServer
-terminator -T "NameServer" -e "bash -c 'source $VENV && echo === NAMESERVER === && python3 -m Pyro5.nameserver; bash'" &
+# 2. Divide horizontalmente para o Nó 1
+tmux split-window -h "source $VENV && python3 $SCRIPT no1 5001; bash"
 
-sleep 3  # espera o NameServer subir
+# 3. Divide o painel do NameServer verticalmente para o Nó 2
+tmux select-pane -t 0
+tmux split-window -v "source $VENV && python3 $SCRIPT no2 5002; bash"
 
-# Lança os 4 nós
-terminator -T "no1" -e "bash -c 'source $VENV && echo === NÓ 1 === && python3 $SCRIPT no1 5001; bash'" &
-sleep 0.3
-terminator -T "no2" -e "bash -c 'source $VENV && echo === NÓ 2 === && python3 $SCRIPT no2 5002; bash'" &
-sleep 0.3
-terminator -T "no3" -e "bash -c 'source $VENV && echo === NÓ 3 === && python3 $SCRIPT no3 5003; bash'" &
-sleep 0.3
-terminator -T "no4" -e "bash -c 'source $VENV && echo === NÓ 4 === && python3 $SCRIPT no4 5004; bash'" &
+# 4. Divide o painel do Nó 1 verticalmente para o Nó 3
+tmux select-pane -t 2
+tmux split-window -v "source $VENV && python3 $SCRIPT no3 5003; bash"
 
-echo "Tudo lançado! Organize as janelas como preferir no Terminator."
+# 5. Adiciona o Nó 4 dividindo o espaço do Nó 2
+tmux select-pane -t 1
+tmux split-window -v "source $VENV && python3 $SCRIPT no4 5004; bash"
+
+tmux select-pane -t 1
+tmux split-window -v "sleep 5 && source $VENV && python3 $CLIENTE;bash"
+
+# Organiza tudo em grade e entra na janela
+tmux select-layout tiled
+tmux attach-session -t $SESSION

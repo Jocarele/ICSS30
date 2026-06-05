@@ -6,7 +6,40 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 from pathlib import Path 
 from terminal import opcoes
 from threading import Thread
+# FLASK
+from flask import Flask, jsonify, request
 
+
+'''
+Responsavel por:
+    -Export a API REST consumida pelo frontend
+    -transformar ações dos usuários em eventos publicados no RabbitMQ
+    -consumir eventos dos demais microserviços
+    -mantes conexões SSE com os clientes
+    -encaminhar notificações SSE apenas para os clientes interessados
+
+Precisa disponibilizar endpoint REST para(ROTAS):
+    -cadastrar na loja
+    -listar promoções publicadas
+    -votar em promoção
+    -votar em promoção
+    -registrar interesse em categoria
+    -cancelar interesse em categoria
+
+SSE Notificiações em tempo real
+    -Hot deals
+    -categorias seguidas pelo usuario
+
+RabbitMQ
+    Publica evento:
+        -promocao.recebida
+        -promocao.voto
+    Consome evento:
+        -promocao.publicada
+        -promocao.destaque
+        -promocao.categoria
+        -promocao.hotdeal
+'''
 
 class Gateway:
     """Gateway centraliza o menu principal e o roteamento de ações do sistema."""
@@ -21,7 +54,7 @@ class Gateway:
         Thread(target=self.iniciar_consumo).start()
         
         self.promocoes_validadas = []
-        
+        #chaves publicas
         self.privete_key = None
         with open(self.caminho / "private_key_gateway.pem", "rb") as f:
             private_key_data = f.read()
@@ -29,6 +62,9 @@ class Gateway:
         with open(self.caminho / "public_key_gateway.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key = serialization.load_pem_public_key(public_key_data)
+        with open(self.caminho / "public_key_loja.pem", "rb") as f:
+            public_key_data = f.read()
+            self.public_key_loja = serialization.load_pem_public_key(public_key_data)
 
 
 
@@ -55,7 +91,6 @@ class Gateway:
                                    on_message_callback=self.atualizar_lista, auto_ack=True)
         self.ch_recv.start_consuming()
 
-
     def atualizar_lista(self,ch, method, properties, body):
 
         payload = json.loads(body)
@@ -76,8 +111,6 @@ class Gateway:
         descricao = input("Digite a descrição da promoção: ")
         categoria  = input("Digite a categoria: ")
 
-
-
         message = {"item": item, "descricao": descricao, "categoria" : categoria}
         message_bytes = json.dumps(message).encode()
         signature = self.private_key.sign(message_bytes)
@@ -88,8 +121,6 @@ class Gateway:
         self.channel.basic_publish(
         exchange='promocao', routing_key="recebida", body=json.dumps(payload))
 
-
-    
     def listar_promocoes(self):
         """Lista todas as promoções publicadas."""
         print("Listando promoções publicadas...")
@@ -113,16 +144,32 @@ class Gateway:
         self.channel.basic_publish(
         exchange='promocao', routing_key="voto", body=json.dumps(payload))
         
-    def votar_promocao(self):
+    def votar_promocao(self,item):
         """Permite votar em promoções existentes."""
         print("Votando em promoções existentes...")
 
-        item = input("Digite o nome do item que deseja votar: ")
         for p in self.promocoes_validadas:
             if p['item'] == item:
                 print(f"Promoção encontrada: {p}")
                 self.votao(item)
                 return
+        
+    @app.route('/promocoes', methods=['GET'])
+    def get_items():
+        return jsonify(promos), 200
+    
+    @app.route('/promocoes', methods=['POST'])
+    def add_item():
+        try:
+            new_promo = request.get_json()
+            signature = new_promo.pop("signature")
+            self.public_key_loja.verify(signature, json.dumps(message).encode())
+            new_promo["id"] = len(promos) + 1  # Assign an ID
+            promos.append(new_promo)
+            return jsonify(new_promo), 201
+
+        except Exception as e:
+            print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
         
         
 
@@ -131,7 +178,7 @@ class Gateway:
     def sair(self):
         """Encerra o sistema."""
         print("Saindo do sistema. Até mais!")
-        return False  # Sinal para parar o loop
+        return False  
     
     def processar_opcao(self, escolha):
         """
@@ -151,7 +198,7 @@ class Gateway:
             print("Opção inválida. Por favor, tente novamente.")
             return True
     
-    def executar(self):
+    def executar(self,app):
         """Loop principal do sistema."""
         while True:
             escolha = opcoes()
@@ -162,7 +209,10 @@ class Gateway:
 def main():
     """Ponto de entrada do programa."""
     gateway = Gateway() 
-    gateway.executar()
+    app = Flask(__name__)
+
+    gateway.executar(app)
+
 
 
 if __name__ == '__main__':

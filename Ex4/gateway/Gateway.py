@@ -53,7 +53,7 @@ class Gateway:
         self.caminho = Path(__file__).parent
         Thread(target=self.iniciar_consumo).start()
         
-        self.promocoes_validadas = []
+        self.promos = []
         #chaves publicas
         self.privete_key = None
         with open(self.caminho / "private_key_gateway.pem", "rb") as f:
@@ -99,7 +99,7 @@ class Gateway:
         try:
             
             self.public_key_promocao.verify(signature, json.dumps(message).encode())
-            self.promocoes_validadas.append(message)
+            self.promos.append(message)
 
         except Exception as e:
             print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
@@ -124,17 +124,15 @@ class Gateway:
     def listar_promocoes(self):
         """Lista todas as promoções publicadas."""
         print("Listando promoções publicadas...")
-        print(self.promocoes_validadas)
+        print(self.promos)
 
-    def votao(self,item):
-        voto = int(input("Digite seu voto (1 para positivo, -1 para negativo): "))
+    def votao(self,promo):
+        if promo["voto"] >1:
+            promo["voto"] = 1
+        if promo["voto"] < 1:
+            promo["voto"] = -1
 
-        if voto >1:
-            voto = 1
-        if voto < 1:
-            voto = -1
-
-        message = {"item": item, "voto": voto}
+        message = promo
         message_bytes = json.dumps(message).encode()
         signature = self.private_key.sign(message_bytes)
         payload = {
@@ -148,29 +146,63 @@ class Gateway:
         """Permite votar em promoções existentes."""
         print("Votando em promoções existentes...")
 
-        for p in self.promocoes_validadas:
+        for p in self.promos:
             if p['item'] == item:
                 print(f"Promoção encontrada: {p}")
                 self.votao(item)
-                return
+                return 1
+        print(f"Promoção não encontrada")
+        return None
         
     @app.route('/promocoes', methods=['GET'])
-    def get_items():
-        return jsonify(promos), 200
+    def get_items(self):
+        return jsonify(self.promos), 200
     
     @app.route('/promocoes', methods=['POST'])
-    def add_item():
+    def add_item(self):
         try:
             new_promo = request.get_json()
             signature = new_promo.pop("signature")
-            self.public_key_loja.verify(signature, json.dumps(message).encode())
-            new_promo["id"] = len(promos) + 1  # Assign an ID
-            promos.append(new_promo)
+            self.public_key_loja.verify(signature, json.dumps(new_promo).encode())
+            new_promo["id"] = len(self.promos) + 1  # Assign an ID
+            self.promos.append(new_promo)
             return jsonify(new_promo), 201
 
         except Exception as e:
-            print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
+            print(f"Assinatura inválida para a promoção: {new_promo}. Erro: {e}")
+            return jsonify(new_promo), 404
+    
+    #TODO: PEGAR A INFORMAÇÃO DO VOTO
+    @app.route('/promocoes/votar', methods=['POST'])
+    def votar_promo(self):
+        try:
+            promo = request.get_json()
+            signature = promo.pop("signature")
+            self.public_key_loja.verify(signature, json.dumps(promo).encode())
+            if (self.votar_promocao(promo)):
+                return jsonify(promo), 201
+            return jsonify(promo), 404 #ERRO arquivo não encontrado
+
+        except Exception as e:
+            print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
+            return jsonify(promo), 404 #ERRO
         
+    @app.route('/promocoes/interesse', methods=['GET'])
+    def interesse_Categoria(self):
+        try:
+            promo = request.get_json()
+            signature = promo.pop("signature")
+            self.public_key_loja.verify(signature, json.dumps(promo).encode())
+            
+            if (self.votar_promocao(promo)):
+                return jsonify(promo), 201
+            return jsonify(promo), 404 #ERRO arquivo não encontrado
+
+        except Exception as e:
+            print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
+            return jsonify(promo), 404 #ERRO
+    
+    
         
 
 

@@ -13,14 +13,14 @@ class Ranking:
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange='promocao', exchange_type='direct')
+        self.channel.exchange_declare(exchange='promoscao', exchange_type='direct')
         queue_result = self.channel.queue_declare(queue='', exclusive=True)
         self.queue_name = queue_result.method.queue
-        self.channel.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="voto")
+        self.channel.queue_bind(exchange='promoscao', queue=self.queue_name,routing_key="voto")
         self.channel.basic_consume(queue=self.queue_name, 
                                    on_message_callback=self.processar_mensagem, auto_ack=True)
         
-        self.itens = []
+        self.promos = []
         self.threshold = 3
         self.caminho = Path(__file__).parent
 
@@ -44,7 +44,7 @@ class Ranking:
         try:
             found = False
             votos = 0
-            for key in self.itens:
+            for key in self.promos:
                 if key["item"] == message["item"]:
                     key["votos"] += 1
                     votos = key["votos"]
@@ -52,20 +52,20 @@ class Ranking:
                     break
             if not found:
                 votos = 1
-                self.itens.append({"item": message["item"], "votos": votos})
+                self.promos.append(message)
                 
             print(f"Item {message['item']} adicionado ao ranking com {votos} votos.")
             if votos >= self.threshold:
-                message = {"item": message["item"], "votos": votos, "alerta": "HOT DEAL"}
-                self.cadastrar_promocao(message) 
+                message["alerta"] = "HOT DEAL"
+                self.make_hotdeal(message) 
                 
 
         except Exception as e:
-            print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
+            print(f"Assinatura inválida para a promosção: {message}. Erro: {e}")
 
-    def cadastrar_promocao(self,message):
-        """Cadastra uma nova promoção no sistema."""
-        print("Cadastrando nova promoção...")
+    def make_hotdeal(self,message):
+        """Avisa que o item virou hotdeal."""
+        print("Cadastrando nova promosção...")
         
         message_bytes = json.dumps(message).encode()
         signature = self.private_key.sign(message_bytes)
@@ -74,7 +74,7 @@ class Ranking:
             "assinatura": base64.b64encode(signature).decode()
         }
         self.channel.basic_publish(
-        exchange='promocao', routing_key="destaque", body=json.dumps(payload))
+        exchange='promoscao', routing_key="destaque", body=json.dumps(payload))
     
 
 

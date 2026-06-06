@@ -180,22 +180,37 @@ class Gateway:
             signature = promo.pop("signature")
             self.public_key_loja.verify(signature, json.dumps(promo).encode())
             if (self.votar_promocao(promo)):
+                
                 return jsonify(promo), 201
-            return jsonify(promo), 404 #ERRO arquivo não encontrado
+            else:
+                return jsonify(promo), 404 #ERRO arquivo não encontrado
 
         except Exception as e:
             print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
             return jsonify(promo), 404 #ERRO
         
     @app.route('/promocoes/interesse', methods=['GET'])
-    def interesse_Categoria(self):
+    def interesse_categoria(self):
         try:
             promo = request.get_json()
             signature = promo.pop("signature")
             self.public_key_loja.verify(signature, json.dumps(promo).encode())
+            #TODO: interesse em categorias
             
-            if (self.votar_promocao(promo)):
-                return jsonify(promo), 201
+            return jsonify(promo), 404 #ERRO categoria não encontrado
+        
+        except Exception as e:
+            print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
+            return jsonify(promo), 404 #ERRO
+        
+    @app.route('/promocoes/desinteresse', methods=['GET'])
+    def desinteresse_categoria(self):
+        try:
+            promo = request.get_json()
+            signature = promo.pop("signature")
+            self.public_key_loja.verify(signature, json.dumps(promo).encode())
+            #TODO: desinteresse em categorias
+            
             return jsonify(promo), 404 #ERRO arquivo não encontrado
 
         except Exception as e:

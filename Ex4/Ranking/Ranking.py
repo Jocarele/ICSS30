@@ -13,10 +13,10 @@ class Ranking:
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(host='localhost'))
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange='promoscao', exchange_type='direct')
+        self.channel.exchange_declare(exchange='promocao', exchange_type='direct')
         queue_result = self.channel.queue_declare(queue='', exclusive=True)
         self.queue_name = queue_result.method.queue
-        self.channel.queue_bind(exchange='promoscao', queue=self.queue_name,routing_key="voto")
+        self.channel.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="voto")
         self.channel.basic_consume(queue=self.queue_name, 
                                    on_message_callback=self.processar_mensagem, auto_ack=True)
         
@@ -46,7 +46,7 @@ class Ranking:
             votos = 0
             for key in self.promos:
                 if key["item"] == message["item"]:
-                    key["votos"] += 1
+                    key["votos"] += message["votos"]
                     votos = key["votos"]
                     found = True
                     break

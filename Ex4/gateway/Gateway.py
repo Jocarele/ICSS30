@@ -19,9 +19,8 @@ Responsavel por:
     -encaminhar notificações SSE apenas para os clientes interessados
 
 Precisa disponibilizar endpoint REST para(ROTAS):
-    -cadastrar na loja
+    -cadastrar promoções na loja
     -listar promoções publicadas
-    -votar em promoção
     -votar em promoção
     -registrar interesse em categoria
     -cancelar interesse em categoria
@@ -129,7 +128,7 @@ class Gateway:
     def votao(self,promo):
         if promo["voto"] >1:
             promo["voto"] = 1
-        if promo["voto"] < 1:
+        elif promo["voto"] < 1:
             promo["voto"] = -1
 
         message = promo
@@ -149,7 +148,7 @@ class Gateway:
         for p in self.promos:
             if p['item'] == item:
                 print(f"Promoção encontrada: {p}")
-                self.votao(item)
+                self.votao(p)
                 return 1
         print(f"Promoção não encontrada")
         return None
@@ -164,13 +163,13 @@ class Gateway:
             new_promo = request.get_json()
             signature = new_promo.pop("signature")
             self.public_key_loja.verify(signature, json.dumps(new_promo).encode())
-            new_promo["id"] = len(self.promos) + 1  # Assign an ID
+            #new_promo["id"] = len(self.promos) + 1  # Assign an ID
             self.promos.append(new_promo)
             return jsonify(new_promo), 201
 
         except Exception as e:
             print(f"Assinatura inválida para a promoção: {new_promo}. Erro: {e}")
-            return jsonify(new_promo), 404
+            return jsonify(new_promo), 404 #ERRO
     
     #TODO: PEGAR A INFORMAÇÃO DO VOTO
     @app.route('/promocoes/votar', methods=['POST'])

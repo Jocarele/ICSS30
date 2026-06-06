@@ -8,7 +8,7 @@ from terminal import opcoes
 from threading import Thread
 # FLASK
 from flask import Flask, jsonify, request
-
+from flask_cors import CORS
 
 '''
 Responsavel por:
@@ -40,6 +40,11 @@ RabbitMQ
         -promocao.hotdeal
 '''
 
+
+app = Flask(__name__)
+CORS(app)
+
+
 class Gateway:
     """Gateway centraliza o menu principal e o roteamento de ações do sistema."""
     
@@ -61,9 +66,9 @@ class Gateway:
         with open(self.caminho / "public_key_gateway.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key = serialization.load_pem_public_key(public_key_data)
-        with open(self.caminho / "public_key_loja.pem", "rb") as f:
-            public_key_data = f.read()
-            self.public_key_loja = serialization.load_pem_public_key(public_key_data)
+        #with open(self.caminho / "public_key_loja.pem", "rb") as f:
+        #    public_key_data = f.read()
+        #    self.public_key_loja = serialization.load_pem_public_key(public_key_data)
 
 
 
@@ -152,75 +157,8 @@ class Gateway:
                 return 1
         print(f"Promoção não encontrada")
         return None
-        
-    @app.route('/promocoes', methods=['GET'])
-    def get_items(self):
-        return jsonify(self.promos), 200
     
-    @app.route('/promocoes', methods=['POST'])
-    def add_item(self):
-        try:
-            new_promo = request.get_json()
-            signature = new_promo.pop("signature")
-            self.public_key_loja.verify(signature, json.dumps(new_promo).encode())
-            #new_promo["id"] = len(self.promos) + 1  # Assign an ID
-            self.promos.append(new_promo)
-            return jsonify(new_promo), 201
 
-        except Exception as e:
-            print(f"Assinatura inválida para a promoção: {new_promo}. Erro: {e}")
-            return jsonify(new_promo), 404 #ERRO
-    
-    #TODO: PEGAR A INFORMAÇÃO DO VOTO
-    @app.route('/promocoes/votar', methods=['POST'])
-    def votar_promo(self):
-        try:
-            promo = request.get_json()
-            signature = promo.pop("signature")
-            self.public_key_loja.verify(signature, json.dumps(promo).encode())
-            if (self.votar_promocao(promo)):
-                
-                return jsonify(promo), 201
-            else:
-                return jsonify(promo), 404 #ERRO arquivo não encontrado
-
-        except Exception as e:
-            print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
-            return jsonify(promo), 404 #ERRO
-        
-    @app.route('/promocoes/interesse', methods=['GET'])
-    def interesse_categoria(self):
-        try:
-            promo = request.get_json()
-            signature = promo.pop("signature")
-            self.public_key_loja.verify(signature, json.dumps(promo).encode())
-            #TODO: interesse em categorias
-            
-            return jsonify(promo), 404 #ERRO categoria não encontrado
-        
-        except Exception as e:
-            print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
-            return jsonify(promo), 404 #ERRO
-        
-    @app.route('/promocoes/desinteresse', methods=['GET'])
-    def desinteresse_categoria(self):
-        try:
-            promo = request.get_json()
-            signature = promo.pop("signature")
-            self.public_key_loja.verify(signature, json.dumps(promo).encode())
-            #TODO: desinteresse em categorias
-            
-            return jsonify(promo), 404 #ERRO arquivo não encontrado
-
-        except Exception as e:
-            print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
-            return jsonify(promo), 404 #ERRO
-    
-    
-        
-
-
-    
     def sair(self):
         """Encerra o sistema."""
         print("Saindo do sistema. Até mais!")
@@ -244,21 +182,93 @@ class Gateway:
             print("Opção inválida. Por favor, tente novamente.")
             return True
     
-    def executar(self,app):
+    def executar(self   ):
         """Loop principal do sistema."""
         while True:
             escolha = opcoes()
             if not self.processar_opcao(escolha):
                 break
+        
+gateway = Gateway( )
+
+@app.route('/promocoes', methods=['GET'])
+def get_items():
+    return jsonify(gateway.promos), 200
+    
+@app.route('/promocoes', methods=['POST'])
+def add_item():
+    try:
+        new_promo = request.get_json()
+        signature = new_promo.pop("signature")
+        gateway.public_key_loja.verify(signature, json.dumps(new_promo).encode())
+        #new_promo["id"] = len(gateway.promos) + 1  # Assign an ID
+        gateway.promos.append(new_promo)
+        return jsonify(new_promo), 201
+
+    except Exception as e:
+        print(f"Assinatura inválida para a promoção: {new_promo}. Erro: {e}")
+        return jsonify(new_promo), 404 #ERRO
+    
+    #TODO: PEGAR A INFORMAÇÃO DO VOTO
+@app.route('/promocoes/votar', methods=['POST'])
+def votar_promo():
+    try:
+        promo = request.get_json()
+        signature = promo.pop("signature")
+        gateway.public_key_loja.verify(signature, json.dumps(promo).encode())
+        if (gateway.votar_promocao(promo)):
+                
+            return jsonify(promo), 201
+        else:
+            return jsonify(promo), 404 #ERRO arquivo não encontrado
+
+    except Exception as e:
+        print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
+        return jsonify(promo), 404 #ERRO
+        
+@app.route('/promocoes/interesse', methods=['GET'])
+def interesse_categoria():
+    try:
+        promo = request.get_json()
+        signature = promo.pop("signature")
+        gateway.public_key_loja.verify(signature, json.dumps(promo).encode())
+            #TODO: interesse em categorias
+            
+        return jsonify(promo), 404 #ERRO categoria não encontrado
+        
+    except Exception as e:
+        print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
+        return jsonify(promo), 404 #ERRO
+        
+@app.route('/promocoes/desinteresse', methods=['GET'])
+def desinteresse_categoria():
+    try:
+        promo = request.get_json()
+        signature = promo.pop("signature")
+        gateway.public_key_loja.verify(signature, json.dumps(promo).encode())
+            #TODO: desinteresse em categorias
+            
+        return jsonify(promo), 404 #ERRO arquivo não encontrado
+
+    except Exception as e:
+        print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
+        return jsonify(promo), 404 #ERRO
+    
+    
+        
+
+
+    
+    
 
 
 def main():
-    """Ponto de entrada do programa."""
-    gateway = Gateway() 
-    app = Flask(__name__)
-
-    gateway.executar(app)
-
+    t = Thread(target=gateway.executar)
+    t.daemon = True
+    t.start()
+    
+    print("Iniciando API Flask na porta 5000...")
+    app.run(port=5000, debug=False, use_reloader=False)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Loja e Promoções</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .promo-card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Sistema de Promoções</h1>
+    
+    <div id="area-consumidor">
+        <h2>Promoções Publicadas</h2>
+        <button onclick="carregarPromocoes()">Atualizar Promoções</button>
+        
+        <div id="lista-promocoes" style="margin-top: 15px;">
+            <p>Nenhuma promoção carregada ainda. Clique no botão acima.</p>
+        </div>
+    </div>
+
+    <script>
+        const URL_BACKEND = "http://localhost:5000";
+        //const URL_BACKEND = "http://localhost:8080";
+
+
+        async function carregarPromocoes() {
+            const divLista = document.getElementById('lista-promocoes');
+            divLista.innerHTML = "<p>Carregando...</p>"; 
+
+            try {
+                const response = await fetch(`${URL_BACKEND}/promocoes`, {
+                    method: 'GET'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+
+                const promocoes = await response.json();
+
+                divLista.innerHTML = ""; 
+
+                if (promocoes.length === 0) {
+                    divLista.innerHTML = "<p>Nenhuma promoção encontrada.</p>";
+                    return;
+                }
+
+                promocoes.forEach(promo => {
+                    const promoHTML = `
+                        <div class="promo-card">
+                            <strong>${promo.item}</strong><br>
+                            <small>Categoria: ${promo.categoria || 'Não definida'}</small><br>
+                            <p>${promo.descricao || ''}</p>
+                        </div>
+                    `;
+                    divLista.innerHTML += promoHTML;
+                });
+
+            } catch (error) {
+                console.error("Erro ao carregar promoções:", error);
+                divLista.innerHTML = `<p style="color: red;">Erro ao conectar com a API: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

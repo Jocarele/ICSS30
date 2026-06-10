@@ -68,6 +68,12 @@ class Gateway:
         with open(self.caminho / "public_key_gateway.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key = serialization.load_pem_public_key(public_key_data)
+        with open(self.caminho.parent / "notificacao/notificacao_publickey.pem", "rb") as f:
+            public_key_data = f.read()
+            self.public_key_notificacao = serialization.load_pem_public_key(public_key_data)
+        with open(self.caminho.parent / "promocao/promocao_publickey.pem", "rb") as f:
+            public_key_data = f.read()
+            self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
         #with open(self.caminho / "public_key_loja.pem", "rb") as f:
         #    public_key_data = f.read()
         #    self.public_key_loja = serialization.load_pem_public_key(public_key_data)
@@ -88,9 +94,7 @@ class Gateway:
 
         self.conn_recv1 = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
         self.ch_recv1 = self.conn_recv1.channel()
-        with open(self.caminho.parent / "promocao/promocao_publickey.pem", "rb") as f:
-            public_key_data = f.read()
-            self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
+
 
         queue_result = self.ch_recv1.queue_declare(queue='', exclusive=True)
         self.queue_name1 = queue_result.method.queue
@@ -119,7 +123,7 @@ class Gateway:
         self.ch_recv2 = self.conn_recv2.channel()
         with open(self.caminho.parent / "notificacao/notificacao_publickey.pem", "rb") as f:
             public_key_data = f.read()
-            self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
+            self.public_key_notificacao = serialization.load_pem_public_key(public_key_data)
 
         queue_result = self.ch_recv2.queue_declare(queue='', exclusive=True)
         self.queue_name2 = queue_result.method.queue
@@ -135,21 +139,18 @@ class Gateway:
         signature = base64.b64decode(payload["assinatura"])
         try:
             
-            self.public_key_promocao.verify(signature, json.dumps(message).encode())
+            self.public_key_notificacao.verify(signature, json.dumps(message).encode())
             #TODO: SSE FRONTEND
             #self.promos.append(message)
 
         except Exception as e:
-            print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
+            print(f"Assinatura inválida para a hotdeal: {message}. Erro: {e}")
     
     def iniciar_consumo_categoria(self):
         """Inicia o consumo de mensagens da fila."""
 
         self.conn_recv3 = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
         self.ch_recv3 = self.conn_recv3.channel()
-        with open(self.caminho.parent / "notificacao/notificacao_publickey.pem", "rb") as f:
-            public_key_data = f.read()
-            self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
 
         queue_result = self.ch_recv3.queue_declare(queue='', exclusive=True)
         self.queue_name3 = queue_result.method.queue
@@ -165,12 +166,12 @@ class Gateway:
         signature = base64.b64decode(payload["assinatura"])
         try:
             
-            self.public_key_promocao.verify(signature, json.dumps(message).encode())
+            self.public_key_notificacao.verify(signature, json.dumps(message).encode())
             #TODO: SSE FRONTEND
             #self.promos.append(message)
 
         except Exception as e:
-            print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
+            print(f"Assinatura inválida para a categoria: {message}. Erro: {e}")
         Thread(target=self.iniciar_consumo_publicado).start()
 
 
@@ -204,7 +205,7 @@ class Gateway:
             voto_recebido = -1
 
 
-        message = {"item" : promo["item"], "votos": voto_recebido }
+        message = {"item" : promo["item"],"categoria": promo["categoria"], "votos": voto_recebido }
 
         message_bytes = json.dumps(message).encode()
         signature = self.private_key.sign(message_bytes)

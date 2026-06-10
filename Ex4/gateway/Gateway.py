@@ -9,6 +9,8 @@ from threading import Thread
 # FLASK
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import queue
+from flask import Response
 
 '''
 Responsavel por:
@@ -82,6 +84,8 @@ class Gateway:
         }
 
         self.categorias_seguidas = set() #### categorias que o amigão está seguindo
+        self.notificacoes_sse = queue.Queue()
+
 
     def iniciar_consumo_publicado(self):
         """Inicia o consumo de mensagens da fila."""
@@ -129,15 +133,16 @@ class Gateway:
         self.ch_recv2.start_consuming()
 
     def atualizar_lista_hotdeal(self,ch, method, properties, body):
-
         payload = json.loads(body)
         message = payload["mensagem"]
         signature = base64.b64decode(payload["assinatura"])
         try:
-            
             self.public_key_promocao.verify(signature, json.dumps(message).encode())
-            #TODO: SSE FRONTEND
-            #self.promos.append(message)
+            
+            #TODO
+            alerta = f" HOT DEAL: A promoção '{message.get('item')}' está em destaque!"
+            self.notificacoes_sse.put(alerta)
+            
 
         except Exception as e:
             print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
@@ -159,20 +164,21 @@ class Gateway:
         self.ch_recv3.start_consuming()
 
     def atualizar_lista_categoria(self,ch, method, properties, body):
-
         payload = json.loads(body)
         message = payload["mensagem"]
         signature = base64.b64decode(payload["assinatura"])
         try:
-            
             self.public_key_promocao.verify(signature, json.dumps(message).encode())
-            #TODO: SSE FRONTEND
-            #self.promos.append(message)
+            
+            categoria = message.get('categoria', '').strip().lower()
+            if categoria in self.categorias_seguidas:
+                alerta = f"🔔 Novidade na sua categoria favorita ({categoria.upper()}): {message.get('item')}!"
+                self.notificacoes_sse.put(alerta)
 
         except Exception as e:
             print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
-        Thread(target=self.iniciar_consumo_publicado).start()
-
+        
+        
 
 
     def cadastrar_promocao(self):
@@ -322,6 +328,15 @@ def desinteresse_categoria():
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
         
+
+@app.route('/stream', methods=['GET'])
+def stream():
+    def event_stream():
+        while True:
+            mensagem = gateway.notificacoes_sse.get()
+            yield f"data: {mensagem}\n\n"
+            
+    return Response(event_stream(), mimetype="text/event-stream")
 
 
     

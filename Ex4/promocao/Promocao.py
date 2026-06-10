@@ -33,7 +33,7 @@ class Promocao:
         with open(f"{self.caminho}/promocao_publickey.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key = serialization.load_pem_public_key(public_key_data)
-        with open(f"/home/joao/Documents/ICSS30/Ex4/gateway/public_key_gateway.pem", "rb") as f:
+        with open(f"/home/joaopedro/ICSS30/Ex4/gateway/public_key_gateway.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key_gateway = serialization.load_pem_public_key(public_key_data)
 

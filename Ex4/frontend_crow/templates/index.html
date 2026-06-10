@@ -12,9 +12,16 @@
     <h1>Sistema de Promoções</h1>
     
     <div id="area-consumidor">
+        <h2>Área do Consumidor - Categorias de Interesse</h2>
+        <div class="promo-card" style="background-color: #f0f4f8;">
+            <input type="text" id="campo-categoria" placeholder="Digite a categoria (ex: jogos)">
+            <button onclick="gerirInteresse('fallow')">Seguir Categoria</button>
+            <button onclick="gerirInteresse('unfallow')">Deixar de Seguir</button>
+            <p><strong>Categorias seguidas atualmente:</strong> <span id="categorias-ativas">Nenhuma</span></p>
+        </div>
+
         <h2>Promoções Publicadas</h2>
         <button onclick="carregarPromocoes()">Atualizar Promoções</button>
-        
         <div id="lista-promocoes" style="margin-top: 15px;">
             <p>Nenhuma promoção carregada ainda. Clique no botão acima.</p>
         </div>
@@ -110,6 +117,46 @@
 
 
 
+
+        let categoriasSeguidas = [];
+
+        async function gerirInteresse(acao) {
+            const categoria = document.getElementById('campo-categoria').value.trim().toLowerCase();
+            
+            if (!categoria) {
+                alert("semNada no campo de categoria");
+                return;
+            }
+
+            const rota = acao === 'fallow' ? '/promocoes/interesse' : '/promocoes/desinteresse';
+            
+            const payload = { categoria: categoria };
+
+            try {
+                const response = await fetch(`${URL_BACKEND}${rota}`, {
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    if (acao === 'fallow') {
+                        if (!categoriasSeguidas.includes(categoria)) categoriasSeguidas.push(categoria);
+                        alert(`segue a categoria : ${categoria}`);
+                    } else {
+                        categoriasSeguidas = categoriasSeguidas.filter(c => c !== categoria);
+                        alert(`não segue mais: ${categoria}`);
+                    }
+                    
+                    document.getElementById('categorias-ativas').innerText = categoriasSeguidas.length > 0 ? categoriasSeguidas.join(', ') : "Nenhuma";
+                    document.getElementById('campo-categoria').value = "";
+                } else {
+                    alert("Erroreceba.");
+                }
+            } catch (error) {
+                console.error("Erro:", error);
+            }
+        }
 
 
 

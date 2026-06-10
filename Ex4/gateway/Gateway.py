@@ -81,6 +81,8 @@ class Gateway:
             "4": self.sair,
         }
 
+        self.categorias_seguidas = set() #### categorias que o amigão está seguindo
+
     def iniciar_consumo_publicado(self):
         """Inicia o consumo de mensagens da fila."""
 
@@ -292,35 +294,33 @@ def votar_promo():
         print(f"Erro ao votar. Erro: {e}")
         return jsonify({"erro" : "erro interno"}), 500 #ERRO
         
-@app.route('/promocoes/interesse', methods=['GET'])
+@app.route('/promocoes/interesse', methods=['POST'])
 def interesse_categoria():
     try:
-        promo = request.get_json()
-        signature = promo.pop("signature")
-        gateway.public_key_loja.verify(signature, json.dumps(promo).encode())
-            #TODO: interesse em categorias
-            
-        return jsonify(promo), 404 #ERRO categoria não encontrado
-        
+        dados = request.get_json()
+        categoria = dados.get('categoria', '').strip().lower()
+        if categoria:
+            gateway.categorias_seguidas.add(categoria)
+            print(f"[*] Usuário registou interesse na categoria: {categoria}")
+            print(f"Interesses ativos: {list(gateway.categorias_seguidas)}")
+            return jsonify({"status": "sucesso", "categoria": categoria}), 200
+        return jsonify({"erro": "Categoria invalida"}), 400
     except Exception as e:
-        print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
-        return jsonify(promo), 404 #ERRO
+        return jsonify({"erro": str(e)}), 500
         
-@app.route('/promocoes/desinteresse', methods=['GET'])
+@app.route('/promocoes/desinteresse', methods=['POST'])
 def desinteresse_categoria():
     try:
-        promo = request.get_json()
-        signature = promo.pop("signature")
-        gateway.public_key_loja.verify(signature, json.dumps(promo).encode())
-            #TODO: desinteresse em categorias
-            
-        return jsonify(promo), 404 #ERRO arquivo não encontrado
-
+        dados = request.get_json()
+        categoria = dados.get('categoria', '').strip().lower()
+        if categoria in gateway.categorias_seguidas:
+            gateway.categorias_seguidas.remove(categoria)
+            print(f"[-] Usuário removeu interesse da categoria: {categoria}")
+            print(f"Interesses ativos: {list(gateway.categorias_seguidas)}")
+            return jsonify({"status": "sucesso", "categoria": categoria}), 200
+        return jsonify({"erro": "Categoria nao encontrada nos interesses"}), 404
     except Exception as e:
-        print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
-        return jsonify(promo), 404 #ERRO
-    
-    
+        return jsonify({"erro": str(e)}), 500
         
 
 

@@ -91,11 +91,11 @@ class Gateway:
             self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
 
         queue_result = self.ch_recv1.queue_declare(queue='', exclusive=True)
-        self.queue_name = queue_result.method.queue
-        self.ch_recv1.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="publicada")
-        self.ch_recv1.basic_consume(queue=self.queue_name, 
+        self.queue_name1 = queue_result.method.queue
+        self.ch_recv1.queue_bind(exchange='promocao', queue=self.queue_name1,routing_key="publicada")
+        self.ch_recv1.basic_consume(queue=self.queue_name1, 
                                    on_message_callback=self.atualizar_lista_publicado, auto_ack=True)
-        self.ch_recv.start_consuming()
+        self.ch_recv1.start_consuming()
 
     def atualizar_lista_publicado(self,ch, method, properties, body):
 
@@ -113,18 +113,18 @@ class Gateway:
     def iniciar_consumo_hotdeal(self):
         """Inicia o consumo de mensagens da fila."""
 
-        self.conn_recv = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-        self.ch_recv = self.conn_recv.channel()
+        self.conn_recv2 = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.ch_recv2 = self.conn_recv2.channel()
         with open(self.caminho.parent / "notificacao/notificacao_publickey.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
 
-        queue_result = self.ch_recv.queue_declare(queue='', exclusive=True)
-        self.queue_name = queue_result.method.queue
-        self.ch_recv.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="hotdeal")
-        self.ch_recv.basic_consume(queue=self.queue_name, 
+        queue_result = self.ch_recv2.queue_declare(queue='', exclusive=True)
+        self.queue_name2 = queue_result.method.queue
+        self.ch_recv2.queue_bind(exchange='promocao', queue=self.queue_name2,routing_key="hotdeal")
+        self.ch_recv2.basic_consume(queue=self.queue_name2, 
                                    on_message_callback=self.atualizar_lista_hotdeal, auto_ack=True)
-        self.ch_recv.start_consuming()
+        self.ch_recv2.start_consuming()
 
     def atualizar_lista_hotdeal(self,ch, method, properties, body):
 
@@ -143,18 +143,18 @@ class Gateway:
     def iniciar_consumo_categoria(self):
         """Inicia o consumo de mensagens da fila."""
 
-        self.conn_recv = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-        self.ch_recv = self.conn_recv.channel()
+        self.conn_recv3 = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.ch_recv3 = self.conn_recv3.channel()
         with open(self.caminho.parent / "notificacao/notificacao_publickey.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
 
-        queue_result = self.ch_recv.queue_declare(queue='', exclusive=True)
-        self.queue_name = queue_result.method.queue
-        self.ch_recv.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="categoria")
-        self.ch_recv.basic_consume(queue=self.queue_name, 
+        queue_result = self.ch_recv3.queue_declare(queue='', exclusive=True)
+        self.queue_name3 = queue_result.method.queue
+        self.ch_recv3.queue_bind(exchange='promocao', queue=self.queue_name3,routing_key="categoria")
+        self.ch_recv3.basic_consume(queue=self.queue_name3, 
                                    on_message_callback=self.atualizar_lista_categoria, auto_ack=True)
-        self.ch_recv.start_consuming()
+        self.ch_recv3.start_consuming()
 
     def atualizar_lista_categoria(self,ch, method, properties, body):
 

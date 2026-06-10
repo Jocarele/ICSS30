@@ -130,13 +130,15 @@ class Gateway:
         print("Listando promoções publicadas...")
         print(self.promos)
 
-    def votao(self,promo):
-        if promo["voto"] >1:
-            promo["voto"] = 1
-        elif promo["voto"] < 1:
-            promo["voto"] = -1
+    def votao(self,promo, voto_recebido):
+        if voto_recebido >1:
+            voto_recebido = 1
+        elif voto_recebido < 1:
+            voto_recebido = -1
 
-        message = promo
+
+        message = {"item" : promo["item"], "votos": voto_recebido }
+
         message_bytes = json.dumps(message).encode()
         signature = self.private_key.sign(message_bytes)
         payload = {
@@ -146,14 +148,14 @@ class Gateway:
         self.channel.basic_publish(
         exchange='promocao', routing_key="voto", body=json.dumps(payload))
         
-    def votar_promocao(self,item):
+    def votar_promocao(self,item, voto_recebido=1):
         """Permite votar em promoções existentes."""
         print("Votando em promoções existentes...")
 
         for p in self.promos:
             if p['item'] == item:
                 print(f"Promoção encontrada: {p}")
-                self.votao(p)
+                self.votao(p, voto_recebido)
                 return 1
         print(f"Promoção não encontrada")
         return None
@@ -210,21 +212,37 @@ def add_item():
         return jsonify(new_promo), 404 #ERRO
     
     #TODO: PEGAR A INFORMAÇÃO DO VOTO
+# @app.route('/promocoes/votar', methods=['POST'])
+# def votar_promo():
+#     try:
+#         promo = request.get_json()
+#         signature = promo.pop("signature")
+#         gateway.public_key_loja.verify(signature, json.dumps(promo).encode())
+#         if (gateway.votar_promocao(promo)):
+                
+#             return jsonify(promo), 201
+#         else:
+#             return jsonify(promo), 404 #ERRO arquivo não encontrado
+
+#     except Exception as e:
+#         print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
+#         return jsonify(promo), 404 #ERRO
+    
 @app.route('/promocoes/votar', methods=['POST'])
 def votar_promo():
     try:
-        promo = request.get_json()
-        signature = promo.pop("signature")
-        gateway.public_key_loja.verify(signature, json.dumps(promo).encode())
-        if (gateway.votar_promocao(promo)):
-                
-            return jsonify(promo), 201
+        dados_voto = request.get_json()
+        item_nome = dados_voto.get('item')
+        valor = dados_voto.get('voto')
+
+        if gateway.votar_promocao(item_nome, valor):
+            return jsonify({"mensagem" : "Voto registrado"}), 201
         else:
-            return jsonify(promo), 404 #ERRO arquivo não encontrado
+            return jsonify({"erro" : "não acho essa promo"}), 404
 
     except Exception as e:
-        print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
-        return jsonify(promo), 404 #ERRO
+        print(f"Erro ao votar. Erro: {e}")
+        return jsonify({"erro" : "erro interno"}), 500 #ERRO
         
 @app.route('/promocoes/interesse', methods=['GET'])
 def interesse_categoria():

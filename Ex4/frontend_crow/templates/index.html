@@ -25,7 +25,8 @@
         //const URL_BACKEND = "http://localhost:8080";
 
 
-        async function carregarPromocoes() {
+        async function carregarPromocoes()
+        {
             const divLista = document.getElementById('lista-promocoes');
             divLista.innerHTML = "<p>Carregando...</p>"; 
 
@@ -34,7 +35,8 @@
                     method: 'GET'
                 });
 
-                if (!response.ok) {
+                if (!response.ok)
+                {
                     throw new Error(`Erro HTTP: ${response.status}`);
                 }
 
@@ -42,17 +44,25 @@
 
                 divLista.innerHTML = ""; 
 
-                if (promocoes.length === 0) {
+                if (promocoes.length === 0)
+                {
                     divLista.innerHTML = "<p>Nenhuma promoção encontrada.</p>";
                     return;
                 }
 
-                promocoes.forEach(promo => {
+                promocoes.forEach(promo =>{
                     const promoHTML = `
                         <div class="promo-card">
                             <strong>${promo.item}</strong><br>
                             <small>Categoria: ${promo.categoria || 'Não definida'}</small><br>
                             <p>${promo.descricao || ''}</p>
+
+
+                            <button onclick="votar('${promo.item}', 1)"> 👍 </button>
+
+                            <button onclick="votar('${promo.item}', -1)"> 👎 </button>
+
+
                         </div>
                     `;
                     divLista.innerHTML += promoHTML;
@@ -63,6 +73,49 @@
                 divLista.innerHTML = `<p style="color: red;">Erro ao conectar com a API: ${error.message}</p>`;
             }
         }
+
+
+        async function votar(nomeItem, valorVoto)
+        {
+            const payload = 
+            {
+                "item": nomeItem,
+                "voto": valorVoto
+            }
+
+            try
+            {
+                const response = await fetch(`${URL_BACKEND}/promocoes/votar`, {
+                    method: 'POST',
+                    headers: {"Content-Type": "application/json"} ,
+                    body: JSON.stringify(payload)
+                });
+
+                if(response.ok)
+                {
+                    //alert(` Voto(${valorVoto > 0 ? '1' : '-1'}) computado para o item :${nomeItem}`);
+                }
+                else
+                {
+                    alert("Erro, cortaram as asinhas do horus");
+                }
+            }
+            catch(error)
+            {
+                console.error("erro ao votar", error);
+                alert("deu merda paizão")
+            }
+            
+        }
+
+
+
+
+
+
+
+
+
     </script>
 </body>
 </html>

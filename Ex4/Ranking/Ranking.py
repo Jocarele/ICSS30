@@ -74,7 +74,7 @@ class Ranking:
             "assinatura": base64.b64encode(signature).decode()
         }
         self.channel.basic_publish(
-        exchange='promoscao', routing_key="destaque", body=json.dumps(payload))
+        exchange='promocao', routing_key="destaque", body=json.dumps(payload))
     
 
 

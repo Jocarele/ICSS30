@@ -43,8 +43,8 @@ class Notificacao:
             elif method.routing_key == "destaque":
                 self.public_key_ranking.verify(signature, json.dumps(message).encode())
                 print(f"[Notificação] HOT DEAL validado. Distribuindo para destaque.")
-                
                 self.channel.basic_publish(exchange='promocao', routing_key=categoria, body=json.dumps(message))
+                self.channel.basic_publish(exchange='promocao', routing_key="hotdeal", body=json.dumps(message))
                 
         except Exception as e:
             print(f"Assinatura inválida no MS Notificação: {message}. Erro: {e}")

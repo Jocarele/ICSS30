@@ -18,3 +18,8 @@ Feito para ler o json e dar pop na assinatura.
         assinatura: assinatura
     }
 ```
+
+## rabbitMQ 
+
+
+Gateway --(voto)--> Ranking --(destaque)--> notificacao --(categoria e hotdeal)--> Gateway

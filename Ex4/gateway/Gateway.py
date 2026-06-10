@@ -84,16 +84,16 @@ class Gateway:
     def iniciar_consumo_publicado(self):
         """Inicia o consumo de mensagens da fila."""
 
-        self.conn_recv = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-        self.ch_recv = self.conn_recv.channel()
+        self.conn_recv1 = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.ch_recv1 = self.conn_recv1.channel()
         with open(self.caminho.parent / "promocao/promocao_publickey.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
 
-        queue_result = self.ch_recv.queue_declare(queue='', exclusive=True)
+        queue_result = self.ch_recv1.queue_declare(queue='', exclusive=True)
         self.queue_name = queue_result.method.queue
-        self.ch_recv.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="publicada")
-        self.ch_recv.basic_consume(queue=self.queue_name, 
+        self.ch_recv1.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="publicada")
+        self.ch_recv1.basic_consume(queue=self.queue_name, 
                                    on_message_callback=self.atualizar_lista_publicado, auto_ack=True)
         self.ch_recv.start_consuming()
 

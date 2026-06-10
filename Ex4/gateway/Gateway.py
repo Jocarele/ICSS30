@@ -55,7 +55,9 @@ class Gateway:
         self.channel.exchange_declare(exchange='promocao', exchange_type='direct')
         
         self.caminho = Path(__file__).parent
-        Thread(target=self.iniciar_consumo).start()
+        Thread(target=self.iniciar_consumo_publicado).start()
+        Thread(target=self.iniciar_consumo_hotdeal).start()
+        Thread(target=self.iniciar_consumo_categoria).start()
         
         self.promos = []
         #chaves publicas
@@ -79,23 +81,23 @@ class Gateway:
             "4": self.sair,
         }
 
-    def iniciar_consumo(self):
+    def iniciar_consumo_publicado(self):
         """Inicia o consumo de mensagens da fila."""
 
-        self.conn_recv = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-        self.ch_recv = self.conn_recv.channel()
+        self.conn_recv1 = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.ch_recv1 = self.conn_recv1.channel()
         with open(self.caminho.parent / "promocao/promocao_publickey.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
 
-        queue_result = self.ch_recv.queue_declare(queue='', exclusive=True)
-        self.queue_name = queue_result.method.queue
-        self.ch_recv.queue_bind(exchange='promocao', queue=self.queue_name,routing_key="publicada")
-        self.ch_recv.basic_consume(queue=self.queue_name, 
-                                   on_message_callback=self.atualizar_lista, auto_ack=True)
-        self.ch_recv.start_consuming()
+        queue_result = self.ch_recv1.queue_declare(queue='', exclusive=True)
+        self.queue_name1 = queue_result.method.queue
+        self.ch_recv1.queue_bind(exchange='promocao', queue=self.queue_name1,routing_key="publicada")
+        self.ch_recv1.basic_consume(queue=self.queue_name1, 
+                                   on_message_callback=self.atualizar_lista_publicado, auto_ack=True)
+        self.ch_recv1.start_consuming()
 
-    def atualizar_lista(self,ch, method, properties, body):
+    def atualizar_lista_publicado(self,ch, method, properties, body):
 
         payload = json.loads(body)
         message = payload["mensagem"]
@@ -107,6 +109,69 @@ class Gateway:
 
         except Exception as e:
             print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
+    
+    def iniciar_consumo_hotdeal(self):
+        """Inicia o consumo de mensagens da fila."""
+
+        self.conn_recv2 = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.ch_recv2 = self.conn_recv2.channel()
+        with open(self.caminho.parent / "notificacao/notificacao_publickey.pem", "rb") as f:
+            public_key_data = f.read()
+            self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
+
+        queue_result = self.ch_recv2.queue_declare(queue='', exclusive=True)
+        self.queue_name2 = queue_result.method.queue
+        self.ch_recv2.queue_bind(exchange='promocao', queue=self.queue_name2,routing_key="hotdeal")
+        self.ch_recv2.basic_consume(queue=self.queue_name2, 
+                                   on_message_callback=self.atualizar_lista_hotdeal, auto_ack=True)
+        self.ch_recv2.start_consuming()
+
+    def atualizar_lista_hotdeal(self,ch, method, properties, body):
+
+        payload = json.loads(body)
+        message = payload["mensagem"]
+        signature = base64.b64decode(payload["assinatura"])
+        try:
+            
+            self.public_key_promocao.verify(signature, json.dumps(message).encode())
+            #TODO: SSE FRONTEND
+            #self.promos.append(message)
+
+        except Exception as e:
+            print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
+    
+    def iniciar_consumo_categoria(self):
+        """Inicia o consumo de mensagens da fila."""
+
+        self.conn_recv3 = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.ch_recv3 = self.conn_recv3.channel()
+        with open(self.caminho.parent / "notificacao/notificacao_publickey.pem", "rb") as f:
+            public_key_data = f.read()
+            self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
+
+        queue_result = self.ch_recv3.queue_declare(queue='', exclusive=True)
+        self.queue_name3 = queue_result.method.queue
+        self.ch_recv3.queue_bind(exchange='promocao', queue=self.queue_name3,routing_key="categoria")
+        self.ch_recv3.basic_consume(queue=self.queue_name3, 
+                                   on_message_callback=self.atualizar_lista_categoria, auto_ack=True)
+        self.ch_recv3.start_consuming()
+
+    def atualizar_lista_categoria(self,ch, method, properties, body):
+
+        payload = json.loads(body)
+        message = payload["mensagem"]
+        signature = base64.b64decode(payload["assinatura"])
+        try:
+            
+            self.public_key_promocao.verify(signature, json.dumps(message).encode())
+            #TODO: SSE FRONTEND
+            #self.promos.append(message)
+
+        except Exception as e:
+            print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
+        Thread(target=self.iniciar_consumo_publicado).start()
+
+
 
     def cadastrar_promocao(self):
         """Cadastra uma nova promoção no sistema."""
@@ -210,23 +275,6 @@ def add_item():
     except Exception as e:
         print(f"Assinatura inválida para a promoção: {new_promo}. Erro: {e}")
         return jsonify(new_promo), 404 #ERRO
-    
-    #TODO: PEGAR A INFORMAÇÃO DO VOTO
-# @app.route('/promocoes/votar', methods=['POST'])
-# def votar_promo():
-#     try:
-#         promo = request.get_json()
-#         signature = promo.pop("signature")
-#         gateway.public_key_loja.verify(signature, json.dumps(promo).encode())
-#         if (gateway.votar_promocao(promo)):
-                
-#             return jsonify(promo), 201
-#         else:
-#             return jsonify(promo), 404 #ERRO arquivo não encontrado
-
-#     except Exception as e:
-#         print(f"Assinatura inválida para a promoção: {promo}. Erro: {e}")
-#         return jsonify(promo), 404 #ERRO
     
 @app.route('/promocoes/votar', methods=['POST'])
 def votar_promo():

@@ -45,7 +45,8 @@ RabbitMQ
 
 app = Flask(__name__)
 CORS(app)
-
+# app2 = Flask(__name__)
+# CORS(app2)
 
 class Gateway:
     """Gateway centraliza o menu principal e o roteamento de ações do sistema."""
@@ -76,9 +77,9 @@ class Gateway:
         with open(self.caminho.parent / "promocao/promocao_publickey.pem", "rb") as f:
             public_key_data = f.read()
             self.public_key_promocao = serialization.load_pem_public_key(public_key_data)
-        #with open(self.caminho / "public_key_loja.pem", "rb") as f:
-        #    public_key_data = f.read()
-        #    self.public_key_loja = serialization.load_pem_public_key(public_key_data)
+        with open(self.caminho.parent / "loja/loja_publickey.pem", "rb") as f:
+            public_key_data = f.read()
+            self.public_key_loja = serialization.load_pem_public_key(public_key_data)
 
 
 
@@ -141,7 +142,7 @@ class Gateway:
         message = payload["mensagem"]
         signature = base64.b64decode(payload["assinatura"])
         try:
-            self.public_key_promocao.verify(signature, json.dumps(message).encode())
+            self.public_key_notificacao.verify(signature, json.dumps(message).encode())
             
             #TODO
             alerta = f" HOT DEAL: A promoção '{message.get('item')}' está em destaque!"
@@ -169,7 +170,7 @@ class Gateway:
         message = payload["mensagem"]
         signature = base64.b64decode(payload["assinatura"])
         try:
-            self.public_key_promocao.verify(signature, json.dumps(message).encode())
+            self.public_key_notificacao.verify(signature, json.dumps(message).encode())
             
             categoria = message.get('categoria', '').strip().lower()
             if categoria in self.categorias_seguidas:
@@ -177,19 +178,19 @@ class Gateway:
                 self.notificacoes_sse.put(alerta)
 
         except Exception as e:
-            print(f"Assinatura inválida para a promoção: {message}. Erro: {e}")
+            print(f"Assinatura inválida para a categoria: {message}. Erro: {e}")
         
         
 
 
-    def cadastrar_promocao(self):
+    def cadastrar_promocao(self,message):
         """Cadastra uma nova promoção no sistema."""
         print("Cadastrando nova promoção...")
-        item = input("Digite o nome do item: ")
-        descricao = input("Digite a descrição da promoção: ")
-        categoria  = input("Digite a categoria: ")
+        # item = input("Digite o nome do item: ")
+        # descricao = input("Digite a descrição da promoção: ")
+        # categoria  = input("Digite a categoria: ")
 
-        message = {"item": item, "descricao": descricao, "categoria" : categoria}
+        # message = {"item": item, "descricao": descricao, "categoria" : categoria}
         message_bytes = json.dumps(message).encode()
         signature = self.private_key.sign(message_bytes)
         payload = {
@@ -240,30 +241,30 @@ class Gateway:
         print("Saindo do sistema. Até mais!")
         return False  
     
-    def processar_opcao(self, escolha):
-        """
-        Processa a opção escolhida pelo usuário.
+    # def processar_opcao(self, escolha):
+    #     """
+    #     Processa a opção escolhida pelo usuário.
         
-        Args:
-            escolha (str): A opção selecionada
+    #     Args:
+    #         escolha (str): A opção selecionada
             
-        Returns:
-            bool: True para continuar, False para sair
-        """
-        acao = self.acoes.get(escolha)
-        if acao:
-            resultado = acao()
-            return resultado if resultado is not None else True
-        else:
-            print("Opção inválida. Por favor, tente novamente.")
-            return True
+    #     Returns:
+    #         bool: True para continuar, False para sair
+    #     """
+    #     acao = self.acoes.get(escolha)
+    #     if acao:
+    #         resultado = acao()
+    #         return resultado if resultado is not None else True
+    #     else:
+    #         print("Opção inválida. Por favor, tente novamente.")
+    #         return True
     
-    def executar(self   ):
-        """Loop principal do sistema."""
-        while True:
-            escolha = opcoes()
-            if not self.processar_opcao(escolha):
-                break
+    # def executar(self   ):
+    #     """Loop principal do sistema."""
+    #     while True:
+    #         escolha = opcoes()
+    #         if not self.processar_opcao(escolha):
+    #             break
         
 gateway = Gateway( )
 
@@ -271,19 +272,21 @@ gateway = Gateway( )
 def get_items():
     return jsonify(gateway.promos), 200
     
-@app.route('/promocoes', methods=['POST'])
+@app.route('/cadastrar', methods=['POST'])
 def add_item():
     try:
         new_promo = request.get_json()
-        signature = new_promo.pop("signature")
-        gateway.public_key_loja.verify(signature, json.dumps(new_promo).encode())
+        signature = new_promo.pop("assinatura")
+        signature_bytes = base64.b64decode(signature)
+        message = new_promo["message"]
+        gateway.public_key_loja.verify(signature_bytes, json.dumps(message).encode())
         #new_promo["id"] = len(gateway.promos) + 1  # Assign an ID
-        gateway.promos.append(new_promo)
-        return jsonify(new_promo), 201
+        gateway.cadastrar_promocao(message)
+        return jsonify(message), 201
 
     except Exception as e:
-        print(f"Assinatura inválida para a promoção: {new_promo}. Erro: {e}")
-        return jsonify(new_promo), 404 #ERRO
+        print(f"Assinatura inválida para a loja: {message}. Erro: {e}")
+        return jsonify(message), 404 #ERRO
     
 @app.route('/promocoes/votar', methods=['POST'])
 def votar_promo():
@@ -341,16 +344,25 @@ def stream():
 
 
     
-    
+def iniciar_servidor_1():
+    print("🟢 Iniciando API Flask 1 na porta 5000...")
+    app.run(port=5000, debug=False, use_reloader=False)
+
+def main():
+    # 1. Cria uma thread separada para rodar o app 1 em segundo plano
+    t1 = Thread(target=iniciar_servidor_1)
+    t1.daemon = True # Faz a thread fechar quando o programa principal fechar
+    t1.start()
 
 
 def main():
-    t = Thread(target=gateway.executar)
-    t.daemon = True
-    t.start()
+    # t = Thread(target=gateway.executar)
+    # t.daemon = True
+    # t.start()
     
     print("Iniciando API Flask na porta 5000...")
     app.run(port=5000, debug=False, use_reloader=False)
+    #app2.run(port=7549, debug=False, use_reloader=False)
 
 
 if __name__ == '__main__':

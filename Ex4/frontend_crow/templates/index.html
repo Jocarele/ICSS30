@@ -2,167 +2,162 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Loja e Promoções</title>
+    <title>Sistema de Promoções - Consumidor</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .promo-card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; }
+        h1 { color: #2c3e50; }
+        h2 { color: #16a085; margin-top: 30px; }
+        .card { border: 1px solid #e0e0e0; padding: 20px; margin-bottom: 15px; border-radius: 8px; background-color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .promo-card { border-left: 5px solid #16a085; }
+        .btn { background-color: #16a085; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 5px; }
+        .btn:hover { background-color: #148f77; }
+        .btn-vote { background-color: #3498db; }
+        .btn-vote:hover { background-color: #2980b9; }
+        .btn-danger { background-color: #e74c3c; }
+        .btn-danger:hover { background-color: #c0392b; }
+        input[type="text"] { padding: 10px; width: 250px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        
+        #notificacao-sse { display: none; background-color: #e67e22; color: white; padding: 15px; margin-bottom: 20px; border-radius: 6px; font-weight: bold; text-align: center; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); animation: fadein 0.5s; }
+        @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
-    <h1>Sistema de Promoções</h1>
-    
-    <div id="area-consumidor">
-        <h2>Área do Consumidor - Categorias de Interesse</h2>
-        <div class="promo-card" style="background-color: #f0f4f8;">
-            <input type="text" id="campo-categoria" placeholder="Digite a categoria (ex: jogos)">
-            <button onclick="gerirInteresse('fallow')">Seguir Categoria</button>
-            <button onclick="gerirInteresse('unfallow')">Deixar de Seguir</button>
-            <p><strong>Categorias seguidas atualmente:</strong> <span id="categorias-ativas">Nenhuma</span></p>
-        </div>
 
-        <h2>Promoções Publicadas</h2>
-        <button onclick="carregarPromocoes()">Atualizar Promoções</button>
+    <h1>🛒 Painel do Consumidor</h1>
+
+    <div id="notificacao-sse">
+        <span id="texto-notificacao"></span>
+    </div>
+
+    <div>
+        <h2>Notificações por Categorias</h2>
+        <div class="card">
+            <p>Insira as raças de hippo.</p>
+            <input type="text" id="campo-categoria" placeholder="Ex: pigmeu">
+            <button class="btn" onclick="gerirInteresse('follow')">Seguir Categoria</button>
+            <button class="btn btn-danger" onclick="gerirInteresse('unfollow')">Deixar de Seguir</button>
+            <p style="margin-top: 15px;"><strong>Categorias seguidas:</strong> <span id="categorias-ativas" style="color: #16a085; font-weight: bold;">Nenhuma</span></p>
+        </div>
+    </div>
+
+    <div>
+        <h2>Promoções Disponíveis</h2>
+        <button class="btn" onclick="carregarPromocoes()">🔄 Atualizar Lista Manualmente</button>
         <div id="lista-promocoes" style="margin-top: 15px;">
-            <p>Nenhuma promoção carregada ainda. Clique no botão acima.</p>
+            <p>Nenhuma promoção carregada.</p>
         </div>
     </div>
 
     <script>
         const URL_BACKEND = "http://localhost:5000";
-        //const URL_BACKEND = "http://localhost:8080";
+        let categoriasSeguidas = [];
 
-
-        async function carregarPromocoes()
-        {
+        async function carregarPromocoes() {
             const divLista = document.getElementById('lista-promocoes');
-            divLista.innerHTML = "<p>Carregando...</p>"; 
-
             try {
-                const response = await fetch(`${URL_BACKEND}/promocoes`, {
-                    method: 'GET'
-                });
-
-                if (!response.ok)
-                {
-                    throw new Error(`Erro HTTP: ${response.status}`);
-                }
-
+                const response = await fetch(`${URL_BACKEND}/promocoes`);
+                if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+                
                 const promocoes = await response.json();
-
                 divLista.innerHTML = ""; 
 
-                if (promocoes.length === 0)
-                {
-                    divLista.innerHTML = "<p>Nenhuma promoção encontrada.</p>";
+                if (promocoes.length === 0) {
+                    divLista.innerHTML = "<p>Nenhuma promoção ativa no momento.</p>";
                     return;
                 }
 
-                promocoes.forEach(promo =>{
-                    const promoHTML = `
-                        <div class="promo-card">
-                            <strong>${promo.item}</strong><br>
-                            <small>Categoria: ${promo.categoria || 'Não definida'}</small><br>
-                            <p>${promo.descricao || ''}</p>
-
-
-                            <button onclick="votar('${promo.item}', 1)"> 👍 </button>
-
-                            <button onclick="votar('${promo.item}', -1)"> 👎 </button>
-
-
+                promocoes.forEach(promo => {
+                    divLista.innerHTML += `
+                        <div class="card promo-card">
+                            <strong style="font-size: 18px;">${promo.item}</strong> 
+                            <span style="background: #e0e0e0; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px;">${promo.categoria || 'Geral'}</span>
+                            <p style="margin: 10px 0; color: #555;">${promo.descricao || 'Sem descrição.'}</p>
+                            <button class="btn btn-vote" onclick="votar('${promo.item}', 1)">👍 Votar +1</button>
+                            <button class="btn btn-danger" onclick="votar('${promo.item}', -1)">👎 Votar -1</button>
                         </div>
                     `;
-                    divLista.innerHTML += promoHTML;
                 });
-
             } catch (error) {
-                console.error("Erro ao carregar promoções:", error);
-                divLista.innerHTML = `<p style="color: red;">Erro ao conectar com a API: ${error.message}</p>`;
+                console.error("Erro ao buscar promoções:", error);
+                divLista.innerHTML = `<p style="color: red;">Falha ao conectar à API do Gateway.</p>`;
             }
         }
 
-
-        async function votar(nomeItem, valorVoto)
-        {
-            const payload = 
-            {
-                "item": nomeItem,
-                "voto": valorVoto
-            }
-
-            try
-            {
-                const response = await fetch(`${URL_BACKEND}/promocoes/votar`, {
-                    method: 'POST',
-                    headers: {"Content-Type": "application/json"} ,
-                    body: JSON.stringify(payload)
-                });
-
-                if(response.ok)
-                {
-                    //alert(` Voto(${valorVoto > 0 ? '1' : '-1'}) computado para o item :${nomeItem}`);
-                }
-                else
-                {
-                    alert("Erro, cortaram as asinhas do horus");
-                }
-            }
-            catch(error)
-            {
-                console.error("erro ao votar", error);
-                alert("deu merda paizão")
-            }
-            
-        }
-
-
-
-
-        let categoriasSeguidas = [];
-
-        async function gerirInteresse(acao) {
-            const categoria = document.getElementById('campo-categoria').value.trim().toLowerCase();
-            
-            if (!categoria) {
-                alert("semNada no campo de categoria");
-                return;
-            }
-
-            const rota = acao === 'fallow' ? '/promocoes/interesse' : '/promocoes/desinteresse';
-            
-            const payload = { categoria: categoria };
-
+        async function votar(nomeItem, valorVoto) {
             try {
-                const response = await fetch(`${URL_BACKEND}${rota}`, {
-                    method: "POST", 
+                const response = await fetch(`${URL_BACKEND}/promocoes/votar`, {
+                    method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ item: nomeItem, voto: valorVoto })
                 });
 
                 if (response.ok) {
-                    if (acao === 'fallow') {
+                    alert(`Voto computado para: ${nomeItem}`);
+                } else {
+                    alert("Não foi possível registrar o voto.");
+                }
+            } catch (error) {
+                console.error("Erro ao votar:", error);
+            }
+        }
+
+        async function gerirInteresse(acao) {
+            const categoria = document.getElementById('campo-categoria').value.trim().toLowerCase();
+            if (!categoria) {
+                alert("Digite uma categoria válida.");
+                return;
+            }
+
+            const rota = acao === 'follow' ? '/promocoes/interesse' : '/promocoes/desinteresse';
+
+            try {
+                const response = await fetch(`${URL_BACKEND}${rota}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ categoria: categoria })
+                });
+
+                if (response.ok) {
+                    if (acao === 'follow') {
                         if (!categoriasSeguidas.includes(categoria)) categoriasSeguidas.push(categoria);
-                        alert(`segue a categoria : ${categoria}`);
                     } else {
                         categoriasSeguidas = categoriasSeguidas.filter(c => c !== categoria);
-                        alert(`não segue mais: ${categoria}`);
                     }
                     
                     document.getElementById('categorias-ativas').innerText = categoriasSeguidas.length > 0 ? categoriasSeguidas.join(', ') : "Nenhuma";
                     document.getElementById('campo-categoria').value = "";
                 } else {
-                    alert("Erroreceba.");
+                    alert("Erro ao atualizar interesses no servidor.");
                 }
             } catch (error) {
-                console.error("Erro:", error);
+                console.error("Erro ao gerir interesse:", error);
             }
         }
 
+        function iniciarSSE() {
+            const eventSource = new EventSource(`${URL_BACKEND}/stream`);
+            
+            eventSource.onmessage = function(event) {
+                const divNotificacao = document.getElementById('notificacao-sse');
+                const textoNotificacao = document.getElementById('texto-notificacao');
+                
+                textoNotificacao.innerText = event.data;
+                divNotificacao.style.display = "block";
+                
+                carregarPromocoes();
+                
+                setTimeout(() => {
+                    divNotificacao.style.display = "none";
+                }, 8000);
+            };
 
+            eventSource.onerror = function() {
+                console.log("Conexão interrompida. Tentando restabelecer o fluxo SSE...");
+            };
+        }
 
-
-
-
+        carregarPromocoes();
+        iniciarSSE();
     </script>
 </body>
 </html>

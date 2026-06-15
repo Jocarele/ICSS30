@@ -58,7 +58,7 @@ class Notificacao:
             if method.routing_key == "publicada":
                 self.public_key_promocao.verify(signature, json.dumps(message).encode())
                 print(f"[Notificação] Promoção validada. Distribuindo para categoria: {categoria}")
-                self.channel.basic_publish(exchange='promocao', routing_key=categoria, body=json.dumps(payload_send))
+                self.channel.basic_publish(exchange='promocao', routing_key="categoria", body=json.dumps(payload_send))
 
             elif method.routing_key == "destaque":
                 self.public_key_ranking.verify(signature, json.dumps(message).encode())

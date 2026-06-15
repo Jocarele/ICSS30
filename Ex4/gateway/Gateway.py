@@ -169,12 +169,15 @@ class Gateway:
         payload = json.loads(body)
         message = payload["mensagem"]
         signature = base64.b64decode(payload["assinatura"])
+        print("pop-up")
         try:
+            print("pop-up")
             self.public_key_notificacao.verify(signature, json.dumps(message).encode())
             
             categoria = message.get('categoria', '').strip().lower()
             if categoria in self.categorias_seguidas:
-                alerta = f"🔔 Novidade na sua categoria favorita ({categoria.upper()}): {message.get('item')}!"
+                print("pop-up")
+                alerta = f"Novidade na sua categoria favorita ({categoria.upper()}): {message.get('item')}!"
                 self.notificacoes_sse.put(alerta)
 
         except Exception as e:
@@ -282,7 +285,7 @@ def add_item():
         gateway.public_key_loja.verify(signature_bytes, json.dumps(message).encode())
         #new_promo["id"] = len(gateway.promos) + 1  # Assign an ID
         gateway.cadastrar_promocao(message)
-        return jsonify(message), 201
+        return jsonify(message), 200
 
     except Exception as e:
         print(f"Assinatura inválida para a loja: {message}. Erro: {e}")
@@ -296,7 +299,7 @@ def votar_promo():
         valor = dados_voto.get('voto')
 
         if gateway.votar_promocao(item_nome, valor):
-            return jsonify({"mensagem" : "Voto registrado"}), 201
+            return jsonify({"mensagem" : "Voto registrado"}), 200
         else:
             return jsonify({"erro" : "não acho essa promo"}), 404
 
@@ -344,15 +347,15 @@ def stream():
 
 
     
-def iniciar_servidor_1():
-    print("🟢 Iniciando API Flask 1 na porta 5000...")
-    app.run(port=5000, debug=False, use_reloader=False)
+# def iniciar_servidor_1():
+#     print("🟢 Iniciando API Flask 1 na porta 5000...")
+#     app.run(port=5000, debug=False, use_reloader=False)
 
-def main():
-    # 1. Cria uma thread separada para rodar o app 1 em segundo plano
-    t1 = Thread(target=iniciar_servidor_1)
-    t1.daemon = True # Faz a thread fechar quando o programa principal fechar
-    t1.start()
+# def main():
+#     t1 = Thread(target=iniciar_servidor_1)
+#     app2.run(port=5001, debug=False, use_reloader=False)
+#     t1.daemon = True 
+#     t1.start()
 
 
 def main():

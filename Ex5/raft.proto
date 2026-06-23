@@ -1,0 +1,5 @@
+message mensagem {
+  int32 id ;
+  string comando ;
+}
+// criar referencia para funções que estão com expose

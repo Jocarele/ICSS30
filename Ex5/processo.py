@@ -141,7 +141,7 @@ class Processo(object):
                     with self.lock:
                         self.outros_nos.pop(a)
                         self.threshold -= 1
-                        
+    #EXPOSE                   
     def anexar_entradas(self, id_lider, termo_lider, commit,uncommit):
         with self.lock:
             if termo_lider < self.termo_atual:
@@ -187,7 +187,7 @@ class Processo(object):
 
 
 
-
+    #EXPOSE
     def pedir_voto(self, id_candidato, termo_candidato):
         with self.lock:
 
@@ -209,7 +209,7 @@ class Processo(object):
             self.imprimir_log(f"votei em {id_candidato} para o termo {termo_candidato}")
             return True
                         
-    
+    #EXPOSE (CLIENTE?)
     def receber_comando(self, name):
         with self.lock:
             if self.estado != "lider":

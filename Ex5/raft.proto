@@ -1,5 +1,44 @@
-message mensagem {
-  int32 id ;
-  string comando ;
+syntax = "proto3";
+
+service Replicate {
+  rpc pedir_voto(voto) returns (success);
+  rpc anexar_entradas(entrada) returns (success);
+  rpc receber_comando(comando_cliente) returns (resposta_cliente);
+  rpc set_lider(lider) returns (success);
 }
-// criar referencia para funções que estão com expose
+
+message voto {
+  string id_candidato = 1;
+  int32 termo_candidato = 2;
+}
+
+message entrada {
+  string id_lider = 1;
+  int32 termo_lider = 2;
+  bool uncommit = 3;
+  int32 uncommit_id = 4;
+  string uncommit_command = 5;
+  bool commit = 6;
+  int32 commit_id = 7; 
+  string commit_command = 8;
+  
+}
+
+message comando_cliente {
+  string command = 1;
+}
+
+message success {
+  bool success = 1;
+}
+
+message resposta_cliente {
+  bool success = 1;
+  string mensagem = 2;
+  string lider = 3;
+}
+message lider{
+  string lider=1;
+  int32 termo=2;
+
+}

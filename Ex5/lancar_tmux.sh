@@ -28,7 +28,7 @@ tmux select-pane -t 1
 tmux split-window -v "source $VENV && python3 $SCRIPT no4 5004; bash"
 
 tmux select-pane -t 1
-tmux split-window -v "sleep 5 && source $VENV && python3 $CLIENTE;bash"
+tmux split-window -v "sleep 1 && source $VENV && python3 $CLIENTE;bash"
 
 # Organiza tudo em grade e entra na janela
 tmux select-layout tiled
